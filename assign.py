@@ -16,15 +16,16 @@ def availableCouriers():
     q = Query(Courier)
     q.filter("online =", True)
     return q
-#    couriers = db.GqlQuery("SELECT * FROM Courier WHERE online = True").fetch(1000)
-#    return couriers
     
 def idleOrders():
     """
     Returns a list of all orders waiting for couriers
     """
-    orders = db.GqlQuery("SELECT * FROM Order WHERE state= :1", "needPickup").fetch(1000)
-    return orders
+    q = Query(Order)
+    q.filter("state =",'needPickup')
+    return q
+#    orders = db.GqlQuery("SELECT * FROM Order WHERE state= :1", "needPickup").fetch(1000)
+#    return orders
 
 @db.transactional(xg=True)
 def assign( order, courier):

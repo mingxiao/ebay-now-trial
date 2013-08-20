@@ -18,17 +18,24 @@ class NewOrderHandler(webapp2.RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/html'
         template = jinja_env.get_template('newOrder.html')
-        self.availableCouriers()
         self.response.out.write(template.render())
 
     def post(self):
-        id = int(self.request.get("id"))
-        plat = float(self.request.get("plat"))
-        plon = float(self.request.get("plon"))
-        dlat = float(self.request.get("dlat"))
-        dlon = float(self.request.get("dlon"))
-        order = Order(orderId =id,pickup_lat=plat,pickup_lon=plon,dropoff_lat=dlat,dropoff_lon=dlon)
-        order.put()
-        assign.assignDelivery()
+        try:
+            id = int(self.request.get("id"))
+            plat = float(self.request.get("plat"))
+            plon = float(self.request.get("plon"))
+            dlat = float(self.request.get("dlat"))
+            dlon = float(self.request.get("dlon"))
+            #check if order already exists
+            pastOrder = db.GqlQuery("SELECT * FROM Order WHERE orderId = :1",id).get()
+            if pastOrder:
+                self.response.set_status(302,"Order already exists")
+            else:
+                order = Order(orderId =id,pickup_lat=plat,pickup_lon=plon,dropoff_lat=dlat,dropoff_lon=dlon)
+                order.put()
+                assign.assignDelivery()
+        except ValueError:
+            self.response.set_status(303,'Invalid values')
 
 app = webapp2.WSGIApplication([('/order/new', NewOrderHandler),], debug=True)

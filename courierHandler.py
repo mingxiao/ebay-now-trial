@@ -26,15 +26,22 @@ class NewCourierPage(webapp2.RequestHandler):
         c_id = self.request.get("id")
         c_lat = self.request.get('lat')
         c_lon = self.request.get('lon')
-        
-        c_id = int(c_id)
-        c_lat = float(c_lat)
-        c_lon = float(c_lon)
-        courier = Courier(courierId=c_id,lat = c_lat,lon=c_lon)
-        courier.put()
-        #when a courier is added, we assign it an order
-        assign.assignDelivery()
-        
+        #do some error handling
+        try:
+            c_id = int(c_id)
+            c_lat = float(c_lat)
+            c_lon = float(c_lon)
+            #check if courier already exists
+            pastCourier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = :1",c_id).get()
+            if pastCourier:
+                self.response.set_status(302,'Courier already exists')
+            else:
+                courier = Courier(courierId=c_id,lat = c_lat,lon=c_lon)
+                courier.put()
+            #when a courier is added, we assign it an order
+            assign.assignDelivery()
+        except ValueError:
+            self.response.set_status(303,'Invalid Values')
         
 class CourierCompletePage(webapp2.RequestHandler):
     """
@@ -72,12 +79,15 @@ class OnlineCourier(webapp2.RequestHandler):
     """
     Handler to set a courier to online
     """
+    def get(self):
+        pass
+    
     @db.transactional
     def update(self,courier):
         courier.online = True
         courier.put()
         
-    def get(self,courier_id):
+    def post(self,courier_id):
         courier_id = int(courier_id)
         courier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = :1",courier_id).get()
         if courier:
@@ -95,7 +105,7 @@ class OfflineCourier(webapp2.RequestHandler):
         courier.online = False
         courier.put()
     
-    def get(self,courier_id):
+    def post(self,courier_id):
         courier_id = int(courier_id)
         courier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = :1",courier_id).get()
         if courier:
@@ -119,7 +129,7 @@ class AcceptCourier(webapp2.RequestHandler):
         order.courierId = courier.courierId
         order.put()
     
-    def get(self,courier_id,order_id):
+    def post(self,courier_id,order_id):
         courier_id = int(courier_id)
         order_id = int(order_id)
         courier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = :1",courier_id).get()
@@ -131,7 +141,6 @@ class AcceptCourier(webapp2.RequestHandler):
         else:
             self.response.set_status(301,"Order does not exists")
             
-    
 app = webapp2.WSGIApplication([('/courier/new', NewCourierPage),
                                ('/courier/(\d+)/complete',CourierCompletePage),
                                ('/courier/(\d+)/online',OnlineCourier),
