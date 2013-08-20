@@ -7,7 +7,7 @@ import webapp2
 import jinja2
 import os
 from models import Order
-import munkresCaller
+import assign
 
 from google.appengine.ext import db
 
@@ -29,27 +29,6 @@ class NewOrderHandler(webapp2.RequestHandler):
         dlon = float(self.request.get("dlon"))
         order = Order(orderId =id,pickup_lat=plat,pickup_lon=plon,dropoff_lat=dlat,dropoff_lon=dlon)
         order.put()
-        
-    def availableCouriers(self):
-        """
-        Returns all available couriers
-        """
-        couriers = db.GqlQuery("SELECT * FROM Courier WHERE online = True").fetch(1000)
-        return couriers
-#        for courier in couriers:
-#            self.response.out.write(courier.courierId)
-    def idleOrders(self):
-        """
-        Returns a list of all orders waiting for couriers
-        """
-        orders = db.GqlQuery("SELECT * FROM Order WHERE state= :1","needPickup").fetch(1000)
-        return orders
-        
-    def assignDelivery(self):
-        couriers = self.availableCouriers()
-        orders = self.idleOrders()
-        indexes = munkresCaller.MunkresCaller().lowest_cost(orders, couriers)
-        pass
-
+        assign.assignDelivery()
 
 app = webapp2.WSGIApplication([('/order/new', NewOrderHandler),], debug=True)

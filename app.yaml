@@ -8,7 +8,7 @@ handlers:
 - url: /
   script: main.app
   
-- url: /courier
+- url: /courier/new
   script: courierHandler.app
 
 - url: /courier/\d+/complete

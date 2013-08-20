@@ -12,15 +12,15 @@ class Order(db.Model):
     dropoff_lat = db.FloatProperty(required= True)
     dropoff_lon = db.FloatProperty(required = True)
     state = db.StringProperty(choices=set(["needPickup","enRoute","delivered"]),default='needPickup')
-    courierId = db.IntegerProperty()
+    courierId = db.IntegerProperty(default= None)
     created = db.DateTimeProperty(auto_now_add=True)
     
 class Courier(db.Model):
     courierId = db.IntegerProperty(required = True)
     lat = db.FloatProperty(required = True)
     lon = db.FloatProperty(required = True)
-    orderId = db.IntegerProperty()
-    online = db.BooleanProperty()
+    orderId = db.IntegerProperty(default =None)
+    online = db.BooleanProperty(default = True)
     
     
     

@@ -5,6 +5,7 @@ Created on Aug 19, 2013
 '''
 import math
 import munkres
+from google.appengine.ext.db import Query
 
 class MunkresCaller():
     def pickup_cost(self,order,courier):
@@ -43,11 +44,24 @@ class MunkresCaller():
                 matrix[i].append(self.delivery_cost(order, courier))
         return matrix
     
+    def is_empty(self,items):
+        """
+        Returns true if items is empty. Items could be a list or a cursor to a query result
+        """
+        if type(items) == type([]):
+            return len(items) == 0
+        elif type(items) == type(Query()):
+            return items.count() == 0
+        else:
+            assert False
+    
     def lowest_cost(self,orders,couriers):
         """
         Given a list of orders and couriers return a list of tuple of indexes that 
         specify which order is assigned to which courier
         """
+        if self.is_empty(orders) or self.is_empty(couriers):
+            return []
         matrix = self.form_matrix(orders, couriers)
         mkres = munkres.Munkres()
         indexes = mkres.compute(matrix)
