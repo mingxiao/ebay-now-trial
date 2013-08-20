@@ -1,0 +1,29 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<link type="text/css" rel="stylesheet" href="/stylesheets/blog.css">
+<title>Oxygen Cloud Interview</title>
+</head>
+<body>
+	<h2> Most recently modified files</h2>
+	{% for file in filesToList%}
+		<div class="blog-title">{{file['path']}}</div>
+	{% endfor  %}
+	
+	
+	<h2> Upload a file </h2>
+	<form method='post' enctype="multipart/form-data">
+	<input type="file" name="upload">
+	<input type='submit' name = 'do_upload'>
+	</form>
+	
+	<h2> Download a file </h2>
+	<h3> File name</h3>
+	<form method='post'>
+	<input type="text" name="download">
+	<input type='submit' name = 'do_download'>
+	</form>
+	
+</body>
+</html>
