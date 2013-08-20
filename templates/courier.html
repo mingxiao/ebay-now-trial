@@ -9,19 +9,20 @@
 
 	<form method="post">
 			<label>
-				<div>Courier ID</div>
+				<div class="blog-title">Courier ID</div>
 				<input type="number" name="id" value="{{title}}">
 			</label>
 			<label>
-				<div>Latitude</div>
+				<div class="blog-title">Latitude</div>
 				<input name="lat" type='number' value="{{lat}}">
 			</label>
 			<label>
-				<div>Longitude</div>
+				<div class="blog-title">Longitude</div>
 				<input name="lon" type='number' value="{{lon}}">
 			</label>
 			<br>
 			<input type="submit">
 	</form>
+	<div class="error">{{error}}</div>
 </body>
 </html>

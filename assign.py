@@ -28,7 +28,7 @@ def idleOrders():
 #    return orders
 
 @db.transactional(xg=True)
-def assign( order, courier):
+def assign(order, courier):
     order.courierId = courier.courierId
     order.state = 'enRoute'
     order.put()
@@ -36,10 +36,35 @@ def assign( order, courier):
     courier.online = False
     courier.orderId = order.orderId
     courier.put()
+    
+#def toList(ordersQuery):
+#    result = []
+#    order = ordersQuery.get()
+#    while order.orderId is not None:
+#        print 'here'
+#        result.append(order)
+#        print order.orderId
+#        order = ordersQuery.get()
+#    return result
 
 def assignDelivery():
+    #issue every time you get() a record, we decrease that record list by 1
     couriers = availableCouriers()
     orders = idleOrders()
     indexes = munkresCaller.MunkresCaller().lowest_cost(orders, couriers)
-    for r, c in indexes:
-        assign(orders[r], couriers[c])
+    prevOrders = []
+    prevCouriers = []
+    for r,c in indexes:
+        #everytime we get() a record, that record is removed from the record list,so we have
+        #to calculate new offsets
+        rOffset = sum(i < r for i in prevOrders)
+        cOffset = sum(i < c for i in prevCouriers)
+        order = orders.get(offset = r - rOffset)
+        courier = couriers.get(offset = c- cOffset)
+        prevOrders.append(r)
+        prevCouriers.append(c)
+        assign(order,courier)
+    
+    
+    
+    

@@ -11,8 +11,10 @@ from google.appengine.ext.db import Query
 from models import Courier, Order
 from orderHandler import NewOrderHandler
 import orderHandler
+import assign
 import unittest
 import webapp2
+import munkresCaller
 import webtest
 
 class NewCourierPageTest(unittest.TestCase):
@@ -34,10 +36,10 @@ class NewCourierPageTest(unittest.TestCase):
         #create courier and there are no orders awaiting pickup
         params = {'id': 1, 'lat': 1.0,'lon':2.0}
         response = self.testapp.post('/courier/new', params)
-        self.assertEqual(200,response.status_int)
+        self.assertEqual(302,response.status_int)
         p2 = {'id': 2, 'lat': 11.0,'lon':22.0}
         response = self.testapp.post('/courier/new', p2)
-        self.assertEqual(200,response.status_int)
+        self.assertEqual(302,response.status_int)
         self.assertEqual(2, len(Courier.all().fetch(20)))
         
         courier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = 1").get()
@@ -56,7 +58,7 @@ class NewCourierPageTest(unittest.TestCase):
         #create a new courier
         params = {'id': 1, 'lat': 10.0,'lon':2.0}
         response = self.testapp.post('/courier/new', params)
-        self.assertEqual(200,response.status_int)
+        self.assertEqual(302,response.status_int)
         #check courier assigned correct order
         courier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = 1").get()
         self.assertEqual(3,courier.orderId)
@@ -126,13 +128,14 @@ class CourierCompletePageTest(unittest.TestCase):
         # Initialize the datastore stub with this policy.
         self.testbed.init_datastore_v3_stub(consistency_policy=self.policy)
         
-    def testGet1(self):
-        #courier and order found
-        order = Order(orderId=1,pickup_lat=1.0,pickup_lon=1.0,dropoff_lat=2.0,dropoff_lon=2.0)
+    def testPost1(self):
+        #courier and order found, with correct state
+        order = Order(orderId=1,pickup_lat=1.0,pickup_lon=1.0,dropoff_lat=2.0,dropoff_lon=2.0,state='enRoute')
         order.put()
+        self.assertEqual('enRoute',order.state)
         courier = Courier(courierId=1,lat=2.0,lon=3.0,orderId=1)
         courier.put()
-        self.testapp.get('/courier/1/complete')
+        self.testapp.post('/courier/1/complete')
         
         result_courier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = 1").get()
         self.assertEqual(True, result_courier.online)
@@ -140,7 +143,7 @@ class CourierCompletePageTest(unittest.TestCase):
         result_order = db.GqlQuery("SELECT * FROM Order WHERE orderId = 1").get()
         self.assertEqual('delivered',result_order.state)
         
-    def testGet2(self):
+    def testPost2(self):
         #courier not found
         order = Order(orderId=1,pickup_lat=1.0,pickup_lon=1.0,dropoff_lat=2.0,dropoff_lon=2.0)
         order.put()
@@ -148,17 +151,17 @@ class CourierCompletePageTest(unittest.TestCase):
         courier.put()
         self.assertEqual(1,len(Courier.all().fetch(20)))
         # if the courier is not found, nothing should be changed
-        response = self.testapp.get('/courier/2/complete')
-        self.assertEqual(300,response.status_int)
+        response = self.testapp.post('/courier/2/complete')
+        self.assertEqual(333,response.status_int)
         
-    def testGet3(self):
+    def testPost3(self):
         #courier found, but order not found
         order = Order(orderId=1,pickup_lat=1.0,pickup_lon=1.0,dropoff_lat=2.0,dropoff_lon=2.0)
         order.put()
         courier = Courier(courierId=7,lat=2.0,lon=3.0,orderId=7)
         courier.put()
-        response = self.testapp.get('/courier/7/complete')
-        self.assertEqual(301,response.status_int)
+        response = self.testapp.post('/courier/7/complete')
+        self.assertEqual(333,response.status_int)
         
     def tearDown(self):
         self.testbed.deactivate()
@@ -178,7 +181,7 @@ class OnlineCourierTest(unittest.TestCase):
         courier = Courier(courierId=7,lat=2.0,lon=3.0,online=False)
         courier.put()
         response = self.testapp.post('/courier/7/online')
-        self.assertEqual(200,response.status_int)
+        self.assertEqual(302,response.status_int)
         result_courier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = 7").get()
         self.assertEqual(True,result_courier.online)
         
@@ -187,7 +190,7 @@ class OnlineCourierTest(unittest.TestCase):
         courier = Courier(courierId=1,lat=2.0,lon=3.0,online=False)
         courier.put()
         response = self.testapp.post('/courier/7/online')
-        self.assertEqual(300,response.status_int)
+        self.assertEqual(333,response.status_int)
         
     def testPost3(self):
         #when courier comes online, assign it a package
@@ -199,11 +202,10 @@ class OnlineCourierTest(unittest.TestCase):
         order.put()
         order = Order(orderId=4,pickup_lat=1.0,pickup_lon=10.0,dropoff_lat=2.0,dropoff_lon=12.0)
         order.put()
-        
         courier = Courier(courierId=7,lat=2.0,lon=3.0,online=False)
         courier.put()
         response = self.testapp.post('/courier/7/online')
-        self.assertEqual(200,response.status_int)
+        self.assertEqual(302,response.status_int)
         #check that courier 1 is assigned order 1
         courier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = 7").get()
         self.assertEqual(1,courier.orderId)
@@ -234,7 +236,7 @@ class OfflineCourierTest(unittest.TestCase):
         courier = Courier(courierId=7,lat=2.0,lon=3.0,online=True)
         courier.put()
         response = self.testapp.post('/courier/7/offline')
-        self.assertEqual(200,response.status_int)
+        self.assertEqual(302,response.status_int)
         result_courier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = 7").get()
         self.assertEqual(False,result_courier.online)
         
@@ -278,14 +280,14 @@ class AcceptCourierTest(unittest.TestCase):
         courier = Courier(courierId=7,lat=2.0,lon=3.0,orderId=7)
         courier.put()
         response = self.testapp.post('/courier/7/accept/1')
-        self.assertEqual(301, response.status_int)
+        self.assertEqual(333, response.status_int)
     
     def testPost3(self):
         #courier does not exists, order exists
         order = Order(orderId=1,pickup_lat=1.0,pickup_lon=1.0,dropoff_lat=2.0,dropoff_lon=2.0)
         order.put()
         response = self.testapp.post('/courier/7/accept/1')
-        self.assertEqual(300, response.status_int)
+        self.assertEqual(333, response.status_int)
     
     def tearDown(self):
         self.testbed.deactivate()
@@ -329,7 +331,7 @@ class NewOrderHandlerTest(unittest.TestCase):
         #test using invalid inputs, no other orders/couriers exists
         params ={'id':1,'plat':'foo','plon':4.0,'dlat':11.0,'dlon':11.0}
         response = self.testapp.post('/order/new',params)
-        self.assertEqual(303, response.status_int)
+        self.assertEqual(344, response.status_int)
         
     def testPost3(self):
         #invalid input, other courier/order exists, make sure were not changed.
@@ -341,7 +343,7 @@ class NewOrderHandlerTest(unittest.TestCase):
         #submit invalid input
         params ={'id':'a','plat':3.0,'plon':4.0,'dlat':11.0,'dlon':11.0}
         response = self.testapp.post('/order/new',params)
-        self.assertEqual(303, response.status_int)
+        self.assertEqual(344, response.status_int)
         #check courier and order was unchanged
         posCourier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = 1").get()
         self.assertEqual(True, posCourier.online)
@@ -356,7 +358,7 @@ class NewOrderHandlerTest(unittest.TestCase):
         order.put()
         params ={'id':1,'plat':3.0,'plon':4.0,'dlat':11.0,'dlon':11.0}
         response = self.testapp.post('/order/new',params)
-        self.assertEqual(302, response.status_int)
+        self.assertEqual(333, response.status_int)
     
     def tearDown(self):
         self.testbed.deactivate()
@@ -380,6 +382,146 @@ class QueryTest(unittest.TestCase):
         q.filter("online = ", True)
         for courier in q:
             self.assertNotEqual(2, courier.courierId)
+            
+    def testOrder(self):
+        order = Order(orderId=1,pickup_lat=1.0,pickup_lon=1.0,dropoff_lat=2.0,dropoff_lon=2.0)
+        order.put()
+        order = db.GqlQuery("SELECT * FROM Order WHERE orderId = :1 AND state = :2",1,'enRoute').get()
+        self.assertEqual(None, order)
+        
+        order = db.GqlQuery("SELECT * FROM Order WHERE orderId = :1 AND state = :2",1,'needPickup').get()
+        self.assertNotEqual(None, order)
     
+    def tearDown(self):
+        self.testbed.deactivate()
+    
+class AssignTest(unittest.TestCase):
+    def setUp(self):
+        self.testbed = testbed.Testbed()
+        self.testbed.activate()
+        self.policy = datastore_stub_util.PseudoRandomHRConsistencyPolicy(probability=1)
+        # Initialize the datastore stub with this policy.
+        self.testbed.init_datastore_v3_stub(consistency_policy=self.policy)
+    
+    def testAvailableCouriers(self):
+        courier = Courier(courierId=1,lat=2.0,lon=3.0,online=True)
+        courier.put()
+        
+        courier = Courier(courierId=3,lat=4.0,lon=3.0,online=True)
+        courier.put()
+        
+        availCouriers = assign.availableCouriers()
+        self.assertEqual(2,availCouriers.count())
+    
+    def testIdleOrders(self):
+        order = Order(orderId=1,pickup_lat=1.0,pickup_lon=1.0,dropoff_lat=2.0,dropoff_lon=2.0)
+        order.put()
+        order = Order(orderId=2,pickup_lat=11.0,pickup_lon=1.0,dropoff_lat=2.0,dropoff_lon=2.0)
+        order.put()
+        
+        orders = assign.idleOrders()
+        self.assertEqual(2, orders.count())
+        
+    def testAssignDelivery1(self):
+        #have couriers but no orders available
+        courier = Courier(courierId=1,lat=2.0,lon=3.0,online=True)
+        courier.put()
+        courier = Courier(courierId=3,lat=4.0,lon=3.0,online=True)
+        courier.put()
+        
+        orders = assign.idleOrders()
+        self.assertEqual(0, orders.count())
+        assign.assignDelivery()
+        
+        posCourier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = 1").get()
+        self.assertEqual(True,posCourier.online)
+        posCourier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = 3").get()
+        self.assertEqual(True,posCourier.online)
+        
+    def testAssignDelivery2(self):
+        #have orders, but no couriers
+        order = Order(orderId=1,pickup_lat=1.0,pickup_lon=1.0,dropoff_lat=2.0,dropoff_lon=2.0)
+        order.put()
+        order = Order(orderId=2,pickup_lat=11.0,pickup_lon=1.0,dropoff_lat=2.0,dropoff_lon=2.0)
+        order.put()
+        
+        assign.assignDelivery()
+        posOrder = db.GqlQuery("SELECT * FROM Order WHERE orderId = 1").get()
+        self.assertEqual(None,posOrder.courierId)
+        self.assertEqual('needPickup',posOrder.state)
+        posOrder = db.GqlQuery("SELECT * FROM Order WHERE orderId = 2").get()
+        self.assertEqual(None,posOrder.courierId)
+        self.assertEqual('needPickup',posOrder.state)
+    
+    def testAssignDelivery3(self):
+        #normal case where we have orders and couriers available
+        courier = Courier(courierId=1,lat=2.0,lon=3.0,online=True)
+        courier.put()
+        courier = Courier(courierId=3,lat=14.0,lon=13.0,online=True)
+        courier.put()
+        order = Order(orderId=4,pickup_lat=1.0,pickup_lon=1.0,dropoff_lat=2.0,dropoff_lon=2.0)
+        order.put()
+        order = Order(orderId=5,pickup_lat=11.0,pickup_lon=11.0,dropoff_lat=2.0,dropoff_lon=2.0)
+        order.put()
+        
+        assign.assignDelivery()
+        #order 4 is matched with courier 1
+        posCourier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = 1").get()
+        self.assertEqual(4,posCourier.orderId)
+        self.assertEqual(False,posCourier.online)
+        posOrder = db.GqlQuery("SELECT * FROM Order WHERE orderId = 4").get()
+        self.assertEqual(1,posOrder.courierId)
+        self.assertEqual('enRoute',posOrder.state)
+    
+    def tearDown(self):
+        self.testbed.deactivate()
+
+class MunkresCallerTest(unittest.TestCase):
+    def setUp(self):
+        self.testbed = testbed.Testbed()
+        self.testbed.activate()
+        self.policy = datastore_stub_util.PseudoRandomHRConsistencyPolicy(probability=1)
+        # Initialize the datastore stub with this policy.
+        self.testbed.init_datastore_v3_stub(consistency_policy=self.policy)
+        self.mkres = munkresCaller.MunkresCaller()
+        
+    def testFormMatrix(self):
+        courier = Courier(courierId=1,lat=2.0,lon=3.0,online=True)
+        courier.put()
+        courier = Courier(courierId=3,lat=14.0,lon=13.0,online=True)
+        courier.put()
+        order = Order(orderId=4,pickup_lat=1.0,pickup_lon=1.0,dropoff_lat=2.0,dropoff_lon=2.0)
+        order.put()
+        order = Order(orderId=5,pickup_lat=11.0,pickup_lon=11.0,dropoff_lat=2.0,dropoff_lon=2.0)
+        order.put()
+        
+        orders = assign.idleOrders()
+        couriers = assign.availableCouriers()
+        matrix  = self.mkres.form_matrix(orders, couriers)
+        
+    def testLowestCost(self):
+        courier = Courier(courierId=1,lat=2.0,lon=3.0,online=True)
+        courier.put()
+        courier = Courier(courierId=3,lat=14.0,lon=13.0,online=True)
+        courier.put()
+        order = Order(orderId=4,pickup_lat=1.0,pickup_lon=1.0,dropoff_lat=2.0,dropoff_lon=2.0)
+        order.put()
+        order = Order(orderId=5,pickup_lat=11.0,pickup_lon=11.0,dropoff_lat=2.0,dropoff_lon=2.0)
+        order.put()
+        
+        orders = assign.idleOrders()
+        couriers = assign.availableCouriers()
+        indexes = self.mkres.lowest_cost(orders, couriers)
+        self.assertEqual(2,len(indexes))
+        for elem in indexes:
+            self.assertEqual(2,len(elem))
+    
+    def tearDown(self):
+        self.testbed.deactivate()
+        pass    
 if __name__=='__main__':
     unittest.main()
+#    suite = unittest.TestSuite()
+#    suite.addTest( AssignTest('testAssignDelivery3' ) )
+#    unittest.TextTestRunner().run(suite)
+    

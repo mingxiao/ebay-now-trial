@@ -5,6 +5,10 @@ api_version: 1
 threadsafe: true
 
 handlers:
+
+- url: /stylesheets
+  static_dir: stylesheets
+
 - url: /
   script: main.app
   
@@ -23,7 +27,25 @@ handlers:
 - url: /courier/\d+/accept/\d+
   script: courierHandler.app
 
+- url: /courier/online
+  script: courierHandler.app
+
+- url: /courier/offline
+  script: courierHandler.app
+
+- url: /courier
+  script: courierHandler.app
+
 - url: /order/new
+  script: orderHandler.app
+
+- url: /order/needPickup
+  script: orderHandler.app
+
+- url: /order/enRoute
+  script: orderHandler.app
+
+- url: /order/delivered
   script: orderHandler.app
 
 libraries:

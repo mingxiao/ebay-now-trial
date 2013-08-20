@@ -29,13 +29,49 @@ class NewOrderHandler(webapp2.RequestHandler):
             dlon = float(self.request.get("dlon"))
             #check if order already exists
             pastOrder = db.GqlQuery("SELECT * FROM Order WHERE orderId = :1",id).get()
-            if pastOrder:
-                self.response.set_status(302,"Order already exists")
-            else:
+            if pastOrder is None:
                 order = Order(orderId =id,pickup_lat=plat,pickup_lon=plon,dropoff_lat=dlat,dropoff_lon=dlon)
                 order.put()
                 assign.assignDelivery()
+                self.redirect('/order/needPickup')
+            else:
+                self.response.set_status(333,"Order already exists")
+                self.response.headers['Content-Type'] = 'text/html'
+                template = jinja_env.get_template('newOrder.html')
+                d = {'error':'Order {} already exists'.format(id)}
+                self.response.out.write(template.render())
         except ValueError:
-            self.response.set_status(303,'Invalid values')
+            self.response.set_status(344,'Invalid values')
+            self.response.headers['Content-Type'] = 'text/html'
+            template = jinja_env.get_template('newOrder.html')
+            d = {'error':'Invalid input parameters'}
+            self.response.out.write(template.render(d))
 
-app = webapp2.WSGIApplication([('/order/new', NewOrderHandler),], debug=True)
+class ListPickupHandler(webapp2.RequestHandler):
+    def get(self):
+        self.response.headers['Content-Type'] = 'text/html'
+        template = jinja_env.get_template('listPickupOrder.html')
+        orders = db.GqlQuery("SELECT * FROM Order WHERE state = :1","needPickup").fetch(20)
+        d = {"orders":orders}
+        self.response.out.write(template.render(d))
+
+class ListEnRouteHandler(webapp2.RequestHandler):
+    def get(self):
+        self.response.headers['Content-Type'] = 'text/html'
+        template = jinja_env.get_template('listEnRouteOrder.html')
+        orders = db.GqlQuery("SELECT * FROM Order WHERE state = :1","enRoute").fetch(20)
+        d = {"orders":orders}
+        self.response.out.write(template.render(d))
+        
+class ListDeliveredHandler(webapp2.RequestHandler):
+    def get(self):
+        self.response.headers['Content-Type'] = 'text/html'
+        template = jinja_env.get_template('listDeliveredOrder.html')
+        orders = db.GqlQuery("SELECT * FROM Order WHERE state = :1","delivered").fetch(20)
+        d = {"orders":orders}
+        self.response.out.write(template.render(d))
+
+app = webapp2.WSGIApplication([('/order/new', NewOrderHandler),
+                               ('/order/delivered',ListDeliveredHandler),
+                               ('/order/enRoute',ListEnRouteHandler),
+                               ('/order/needPickup',ListPickupHandler)], debug=True)
