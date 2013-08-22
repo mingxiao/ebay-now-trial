@@ -1,0 +1,20 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<link type="text/css" rel="stylesheet" href="/stylesheets/blog.css">
+<title>Insert title here</title>
+</head>
+<body>
+<h2>Orders that need pickup </h2>
+<hr>
+		{% for order in orders%}
+			<label>Order Id</label>
+			<div class="blog-title">{{order.orderId}}</div>
+			<label>Courier Id</label>
+			<div class="blog-title">{{order.courierId}}</div>
+			<hr>
+		{% endfor %}
+
+</body>
+</html>

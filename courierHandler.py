@@ -178,7 +178,7 @@ class AcceptCourier(webapp2.RequestHandler):
         courier.put()
         #change state of order
         order.state = "enRoute"
-        order.courierId = courier.courierId
+#        order.courierId = courier.courierId
         order.put()
     
     def post(self,courier_id,order_id):

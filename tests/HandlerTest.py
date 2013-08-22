@@ -163,6 +163,10 @@ class CourierCompletePageTest(unittest.TestCase):
         response = self.testapp.post('/courier/7/complete')
         self.assertEqual(333,response.status_int)
         
+    def testPost4(self):
+        #courier has a package and there are other packages
+        pass
+        
     def tearDown(self):
         self.testbed.deactivate()
         
@@ -421,6 +425,14 @@ class AssignTest(unittest.TestCase):
         
         orders = assign.idleOrders()
         self.assertEqual(2, orders.count())
+        
+        
+    def testNumLess(self):
+        lst = [1,3,0,9]
+        
+        self.assertEqual(3, assign.numLess(lst, 4))
+        self.assertEqual(2, assign.numLess(lst, 2))
+        
         
     def testAssignDelivery1(self):
         #have couriers but no orders available

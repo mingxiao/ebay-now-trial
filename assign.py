@@ -37,15 +37,8 @@ def assign(order, courier):
     courier.orderId = order.orderId
     courier.put()
     
-#def toList(ordersQuery):
-#    result = []
-#    order = ordersQuery.get()
-#    while order.orderId is not None:
-#        print 'here'
-#        result.append(order)
-#        print order.orderId
-#        order = ordersQuery.get()
-#    return result
+def numLess(lst,num):
+    return sum(i< num for i in lst)
 
 def assignDelivery():
     #issue every time you get() a record, we decrease that record list by 1

@@ -15,6 +15,7 @@ class Order(db.Model):
     courierId = db.IntegerProperty(default= None)
     created = db.DateTimeProperty(auto_now_add=True)
     
+    
 class Courier(db.Model):
     courierId = db.IntegerProperty(required = True)
     lat = db.FloatProperty(required = True)
