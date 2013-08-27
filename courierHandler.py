@@ -8,7 +8,6 @@ import jinja2
 import os
 from models import Courier
 import assign
-import logging
 from google.appengine.ext import db
 
 jinja_env = jinja2.Environment(autoescape=True,
@@ -73,7 +72,6 @@ class CourierCompletePage(webapp2.RequestHandler):
         Update courier to be active and set the state of the order to 'delivered'
         """
         courier.online = True
-        courier.orderId = None
         courier.put()
         
         order.state = "delivered"
@@ -85,7 +83,7 @@ class CourierCompletePage(webapp2.RequestHandler):
         handle = db.GqlQuery("SELECT * FROM Courier WHERE courierId = :1",courier_id)
         courier = handle.get()
         if courier is not None:
-            order = db.GqlQuery("SELECT * FROM Order WHERE orderId = :1 AND state = :2",courier.orderId,'enRoute').get()
+            order = db.GqlQuery("SELECT * FROM Order WHERE state = :1",'enRoute').get()
             if order is not None:
                 self.update(courier,order)
                 #assign it a new delivery
@@ -197,18 +195,17 @@ class ListOnlineCourier(webapp2.RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/html'
         template = jinja_env.get_template('listOnlineCourier.html')
-        couriers = db.GqlQuery("SELECT * FROM Courier WHERE online = True").fetch(20)
+#        couriers = db.GqlQuery("SELECT * FROM Courier WHERE online = True").fetch(20)
+        couriers = assign.availableCouriers()
         d = {"couriers":couriers}
         self.response.out.write(template.render(d))
-        
-    def post(self):
-        pass
         
 class ListOfflineCourier(webapp2.RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/html'
         template = jinja_env.get_template('listOfflineCourier.html')
-        couriers = db.GqlQuery("SELECT * FROM Courier WHERE online = False").fetch(20)
+#        couriers = db.GqlQuery("SELECT * FROM Courier WHERE online = False").fetch(20)
+        couriers = assign.availableCouriers()
         d = {"couriers":couriers}
         self.response.out.write(template.render(d))
     

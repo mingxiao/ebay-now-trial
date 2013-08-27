@@ -20,7 +20,6 @@ class Courier(db.Model):
     courierId = db.IntegerProperty(required = True)
     lat = db.FloatProperty(required = True)
     lon = db.FloatProperty(required = True)
-    orderId = db.IntegerProperty(default =None)
     online = db.BooleanProperty(default = True)
     
     

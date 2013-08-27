@@ -60,9 +60,9 @@ class NewCourierPageTest(unittest.TestCase):
         response = self.testapp.post('/courier/new', params)
         self.assertEqual(302,response.status_int)
         #check courier assigned correct order
-        courier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = 1").get()
-        self.assertEqual(3,courier.orderId)
-        self.assertEqual(False,courier.online)
+#        courier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = 1").get()
+#        self.assertEqual(3,courier.orderId)
+#        self.assertEqual(False,courier.online)
         #check that the assigned order is enRoute
         posOrder = db.GqlQuery("SELECT * FROM Order WHERE orderId = 3").get()
         self.assertEqual(1,posOrder.courierId)
@@ -102,7 +102,6 @@ class NewCourierPageTest(unittest.TestCase):
         #check previous courier and order did not change
         posCourier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = 1").get()
         self.assertEqual(True, posCourier.online)
-        self.assertEqual(None, posCourier.orderId)
         posOrder = db.GqlQuery("SELECT * FROM Order WHERE orderId = 1").get()
         self.assertEqual(None,posOrder.courierId)
         self.assertEqual('needPickup',posOrder.state)
@@ -139,7 +138,6 @@ class CourierCompletePageTest(unittest.TestCase):
         
         result_courier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = 1").get()
         self.assertEqual(True, result_courier.online)
-        self.assertEqual(None, result_courier.orderId)
         result_order = db.GqlQuery("SELECT * FROM Order WHERE orderId = 1").get()
         self.assertEqual('delivered',result_order.state)
         
@@ -158,7 +156,7 @@ class CourierCompletePageTest(unittest.TestCase):
         #courier found, but order not found
         order = Order(orderId=1,pickup_lat=1.0,pickup_lon=1.0,dropoff_lat=2.0,dropoff_lon=2.0)
         order.put()
-        courier = Courier(courierId=7,lat=2.0,lon=3.0,orderId=7)
+        courier = Courier(courierId=7,lat=2.0,lon=3.0)
         courier.put()
         response = self.testapp.post('/courier/7/complete')
         self.assertEqual(333,response.status_int)
@@ -211,9 +209,9 @@ class OnlineCourierTest(unittest.TestCase):
         response = self.testapp.post('/courier/7/online')
         self.assertEqual(302,response.status_int)
         #check that courier 1 is assigned order 1
-        courier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = 7").get()
-        self.assertEqual(1,courier.orderId)
-        self.assertEqual(False,courier.online)
+#        courier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = 7").get()
+#        self.assertEqual(1,courier.orderId)
+#        self.assertEqual(False,courier.online)
         #check order 1 is assigned to courier 1
         posOrder = db.GqlQuery("SELECT * FROM Order WHERE orderId = 1").get()
         self.assertEqual('enRoute',posOrder.state)
@@ -274,7 +272,6 @@ class AcceptCourierTest(unittest.TestCase):
         self.assertEqual(200, response.status_int)
         #check that courier has properly changed
         result_courier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = 7").get()
-        self.assertEqual(1, result_courier.orderId)
         #check order has properly changed
         result_order = db.GqlQuery("SELECT * FROM Order WHERE orderId = 1").get()
         self.assertEqual('enRoute',result_order.state)
@@ -321,15 +318,14 @@ class NewOrderHandlerTest(unittest.TestCase):
         order = db.GqlQuery("SELECT * FROM Order WHERE orderId = 1").get()
         self.assertEqual(1, order.courierId)
         #should have been assigned to courier 1
-        posCourier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = 1").get()
-        self.assertEqual(False,posCourier.online)
-        self.assertEqual(1,posCourier.orderId)
+#        posCourier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = 1").get()
+#        self.assertEqual(False,posCourier.online)
+#        self.assertEqual(1,posCourier.orderId)
         
         #check that the other couriers are available and have not been assigned
         for id in range(2,5):
             negCourier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = :1",id).get()
             self.assertEqual(True, negCourier.online)
-            self.assertEqual(None,negCourier.orderId)
             
     def testPost2(self):
         #test using invalid inputs, no other orders/couriers exists
@@ -351,7 +347,6 @@ class NewOrderHandlerTest(unittest.TestCase):
         #check courier and order was unchanged
         posCourier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = 1").get()
         self.assertEqual(True, posCourier.online)
-        self.assertEqual(None, posCourier.orderId)
         posOrder = db.GqlQuery("SELECT * FROM Order WHERE orderId = 1").get()
         self.assertEqual(None,posOrder.courierId)
         self.assertEqual('needPickup',posOrder.state)
@@ -426,6 +421,82 @@ class AssignTest(unittest.TestCase):
         orders = assign.idleOrders()
         self.assertEqual(2, orders.count())
         
+    def testOrdersEnroute(self):
+        order = Order(orderId=1,pickup_lat=1.0,pickup_lon=1.0,dropoff_lat=2.0,dropoff_lon=2.0,state='enRoute')
+        order.put()
+        order = Order(orderId=2,pickup_lat=11.0,pickup_lon=1.0,dropoff_lat=2.0,dropoff_lon=2.0)
+        order.put()
+        order = Order(orderId=3,pickup_lat=1.0,pickup_lon=1.0,dropoff_lat=2.0,dropoff_lon=2.0,state='enRoute')
+        order.put()
+        
+        q = assign.ordersEnRoute()
+        self.assertEqual(2,q.count())
+        for order in q:
+            self.assertIn(order.orderId, [1,3])
+            
+    def testCouriersIdEnRoute(self):
+        order = Order(orderId=1,pickup_lat=1.0,pickup_lon=1.0,dropoff_lat=2.0,dropoff_lon=2.0,state='enRoute',courierId= 10)
+        order.put()
+        order = Order(orderId=2,pickup_lat=11.0,pickup_lon=1.0,dropoff_lat=2.0,dropoff_lon=2.0)
+        order.put()
+        order = Order(orderId=3,pickup_lat=1.0,pickup_lon=1.0,dropoff_lat=2.0,dropoff_lon=2.0,state='enRoute',courierId = 5)
+        order.put()
+        couriers = assign.couriersIdEnRoute()
+        self.assertEqual(set([10,5]), set(couriers))
+        
+    def testAvailable2(self):
+        order = Order(orderId=1,pickup_lat=1.0,pickup_lon=1.0,dropoff_lat=2.0,dropoff_lon=2.0,state='enRoute',courierId= 3)
+        order.put()
+        courier = Courier(courierId=1,lat=2.0,lon=3.0,online=True)
+        courier.put()
+        
+        courier = Courier(courierId=3,lat=4.0,lon=3.0,online=True)
+        courier.put()
+        
+        courier = Courier(courierId=4,lat=4.0,lon=3.0,online=True)
+        courier.put()
+        
+        couriers = assign.available2()
+        for c in couriers:
+            self.assertIn(c.courierId, set([1,4]))
+            
+    def testUnavailableCouriers(self):
+        order = Order(orderId=1,pickup_lat=1.0,pickup_lon=1.0,dropoff_lat=2.0,dropoff_lon=2.0,state='enRoute',courierId= 3)
+        order.put()
+        courier = Courier(courierId=1,lat=2.0,lon=3.0,online=True)
+        courier.put()
+        
+        courier = Courier(courierId=3,lat=4.0,lon=3.0,online=True)
+        courier.put()
+        
+        courier = Courier(courierId=4,lat=4.0,lon=3.0,online=True)
+        courier.put()
+        
+        couriers = assign.unavailableCouriers()
+        for c in couriers:
+            self.assertIn(c.courierId, [3])
+            
+    def testAllCouriers(self):
+        courier = Courier(courierId=1,lat=2.0,lon=3.0,online=True)
+        courier.put()
+        
+        courier = Courier(courierId=3,lat=4.0,lon=3.0,online=True)
+        courier.put()
+        
+        c = assign.allCourierIds()
+        self.assertEqual([1,3],c)
+        
+    def testAvailableCourierId(self):
+        order = Order(orderId=1,pickup_lat=1.0,pickup_lon=1.0,dropoff_lat=2.0,dropoff_lon=2.0,state='enRoute',courierId= 3)
+        order.put()
+        courier = Courier(courierId=1,lat=2.0,lon=3.0,online=True)
+        courier.put()
+        
+        courier = Courier(courierId=3,lat=4.0,lon=3.0,online=True)
+        courier.put()
+        courier = Courier(courierId=8,lat=4.0,lon=3.0,online=True)
+        courier.put()
+        self.assertEqual([1,8],assign.availableCourierId())
         
     def testNumLess(self):
         lst = [1,3,0,9]
@@ -478,9 +549,10 @@ class AssignTest(unittest.TestCase):
         
         assign.assignDelivery()
         #order 4 is matched with courier 1
-        posCourier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = 1").get()
-        self.assertEqual(4,posCourier.orderId)
-        self.assertEqual(False,posCourier.online)
+#        posCourier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = 1").get()
+#        self.assertEqual(4,posCourier.orderId)
+#        self.assertEqual(False,posCourier.online)
+        
         posOrder = db.GqlQuery("SELECT * FROM Order WHERE orderId = 4").get()
         self.assertEqual(1,posOrder.courierId)
         self.assertEqual('enRoute',posOrder.state)
