@@ -27,18 +27,8 @@ class Test(unittest.TestCase):
         actual= self.mkres.pickup_cost(self.order, self.courier)
         self.assertAlmostEqual(expected, actual, delta = 1)
         
-    def testOrderCost(self):
-        expected = 3320
-        actual = self.mkres.order_cost(self.order)
-        self.assertAlmostEqual(expected, actual, delta=1)
-        
-    def testDeliveryCost(self):
-        expected = 12055
-        actual = self.mkres.delivery_cost(self.order, self.courier)
-        self.assertAlmostEqual(expected, actual, delta=1)
-        
     def testFormMatrix(self):
-        expectedMatrix = [[2787,425],[3140,5354]]
+        expectedMatrix = [[2472,111],[109,2323]]
         actualMatrix = self.mkres.form_matrix(self.orders, self.couriers)
         for i in range(len(expectedMatrix)):
             for j in range(len(expectedMatrix[i])):
@@ -47,7 +37,6 @@ class Test(unittest.TestCase):
     def testLowestCost(self):
         expected = [(0,1),(1,0)]
         actual = self.mkres.lowest_cost(self.orders, self.couriers)
-        print actual
         self.assertEqual(expected, actual)
     
 if __name__ == "__main__":

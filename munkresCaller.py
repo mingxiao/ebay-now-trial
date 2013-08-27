@@ -13,18 +13,6 @@ class MunkresCaller():
         Cost for a courier to pick up an order
         """
         return self.distance(order.pickup_lat,order.pickup_lon,courier.lat,courier.lon)
-    
-    def order_cost(self,order):
-        """
-        Cost for an order to go from point A to B
-        """
-        return self.distance(order.pickup_lat, order.pickup_lon, order.dropoff_lat, order.dropoff_lon)
-    
-    def delivery_cost(self,order, courier):
-        """
-        Total cost to delivery = pickup cost + order cost
-        """
-        return self.pickup_cost(order,courier) + self.order_cost(order)
 
     def distance(self,lat1,lon1,lat2,lon2):
             radius = 6371 # km                                                                                                                                  
@@ -41,7 +29,7 @@ class MunkresCaller():
         for i,order in enumerate(orders):
             matrix.append([])
             for courier in couriers:
-                matrix[i].append(self.delivery_cost(order, courier))
+                matrix[i].append(self.pickup_cost(order, courier))
         return matrix
     
     def is_empty(self,items):

@@ -22,10 +22,6 @@ class NewCourierPage(webapp2.RequestHandler):
         template = jinja_env.get_template('courier.html')
         self.response.out.write(template.render())
         
-    @db.transactional
-    def update(self,courier):
-        courier.put()
-    
     def post(self):
         c_id = self.request.get("id")
         c_lat = self.request.get('lat')
@@ -39,7 +35,7 @@ class NewCourierPage(webapp2.RequestHandler):
             pastCourier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = :1",c_id).get()
             if pastCourier is None:
                 courier = Courier(courierId=c_id,lat = c_lat,lon=c_lon)
-                self.update(courier)
+                courier.put()
                 #when a courier is added, we assign it an order
                 assign.assignDelivery()
                 self.redirect('/courier/online')
@@ -66,14 +62,10 @@ class CourierCompletePage(webapp2.RequestHandler):
         d = {"courier_id":courier_id}
         self.response.out.write(template.render(d))
         
-    @db.transactional(xg=True)
-    def update(self,courier,order):
+    def update(self,order):
         """
-        Update courier to be active and set the state of the order to 'delivered'
+        Set the state of the order to 'delivered'
         """
-        courier.online = True
-        courier.put()
-        
         order.state = "delivered"
         order.put()
     
@@ -85,7 +77,7 @@ class CourierCompletePage(webapp2.RequestHandler):
         if courier is not None:
             order = db.GqlQuery("SELECT * FROM Order WHERE state = :1",'enRoute').get()
             if order is not None:
-                self.update(courier,order)
+                self.update(order)
                 #assign it a new delivery
                 assign.assignDelivery()
                 self.redirect('/order/delivered')
@@ -165,18 +157,13 @@ class AcceptCourier(webapp2.RequestHandler):
         d = {'courier_id':courier_id,'order_id':order_id}
         self.response.out.write(template.render(d))
     
-    @db.transactional(xg=True)
-    def update(self,order,courier):
+    def update(self,order,id):
         """
         Atmoic update of order and courier
         """
-        #set courier to offline
-        courier.online= False
-        courier.orderId = order.orderId
-        courier.put()
         #change state of order
         order.state = "enRoute"
-#        order.courierId = courier.courierId
+        order.courierId = id
         order.put()
     
     def post(self,courier_id,order_id):
@@ -185,7 +172,8 @@ class AcceptCourier(webapp2.RequestHandler):
         courier = db.GqlQuery("SELECT * FROM Courier WHERE courierId = :1",courier_id).get()
         order = db.GqlQuery("SELECT * FROM Order WHERE orderId = :1 AND state = :2",order_id,'needPickup').get()
         if courier is not None and order is not None:
-            self.update(order, courier)
+            id = courier.courierId
+            self.update(order, id)
         elif courier is None:
             self.response.set_status(333,"Courier does not exists")
         else:
